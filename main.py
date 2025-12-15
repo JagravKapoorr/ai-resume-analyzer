@@ -107,11 +107,11 @@ if st.session_state.form_submitted:
     ats_score = calculate_similarity_bert(st.session_state.resume, st.session_state.job_desc)
     ats_percentage = round(ats_score * 100, 2)
     
-    # Create columns WITHOUT border parameter
+    # Create columns
     col1, col2 = st.columns(2)
     
     with col1:
-        st.write("Few ATS uses this score to shortlist candidates, Similarity Score:")
+        st.write("ATS Similarity Score:")
         st.subheader(f"{ats_percentage}% Match")
     
     # Get AI report
@@ -122,7 +122,7 @@ if st.session_state.form_submitted:
     avg_score = sum(report_scores) / len(report_scores) if report_scores else 0
     
     with col2:
-        st.write("Total Average score according to our AI report:")
+        st.write("AI Analysis Score:")
         st.subheader(f"{round(avg_score, 2)} / 5")
     
     score_place.success("Scores generated successfully!")
@@ -131,12 +131,12 @@ if st.session_state.form_submitted:
     
     # Display report
     st.markdown(f"""
-    <div style='text-align: left; background-color: #000000; padding: 10px; border-radius: 10px; margin: 5px 0;'>
+    <div style='text-align: left; background-color: #f0f2f6; padding: 10px; border-radius: 10px; margin: 5px 0;'>
         {report}
     </div>
     """, unsafe_allow_html=True)
     
-    # Download button WITHOUT icon parameter
+    # Download button - NO icon parameter
     st.download_button(
         label="Download Report",
         data=report,
