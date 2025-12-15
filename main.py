@@ -1,40 +1,28 @@
-import streamlit as st                            # For Web Interface (Front-End)
-from pdfminer.high_level import extract_text      # To Extract Text from Resume PDF
-from sentence_transformers import SentenceTransformer      # To generate Embeddings of text
-from sklearn.metrics.pairwise import cosine_similarity     # To get Similarity Score of Resume and Job Description
-from groq import Groq                             # API to use LLM's
-import re                                         # To perform Regular Expression Functions
-from dotenv import load_dotenv                    # Loading API Key from .env file
+import streamlit as st
+from pdfminer.high_level import extract_text
+from sentence_transformers import SentenceTransformer
+from sklearn.metrics.pairwise import cosine_similarity
+from groq import Groq
+import re
+from dotenv import load_dotenv
 import os
 
-
-# Load environment variables from .env
+# Load environment variables
 load_dotenv()
-
-# Fetch the key from the environment
 api_key = os.getenv("GROQ_API_KEY")
 
-
-#  Session States to store values 
+# Initialize session states
 if "form_submitted" not in st.session_state:
     st.session_state.form_submitted = False
-
 if "resume" not in st.session_state:
-    st.session_state.resume=""
-
+    st.session_state.resume = ""
 if "job_desc" not in st.session_state:
-    st.session_state.job_desc=""
+    st.session_state.job_desc = ""
 
-
-
-# Title of the Project, change according to your style
+# Title
 st.title("AI Resume Analyzer 📝")
 
-
-
-# <------- Defining Functions ------->
-
-# Function to extract text from PDF
+# Functions
 @st.cache_data
 def extract_pdf_text(uploaded_file):
     try:
@@ -44,28 +32,22 @@ def extract_pdf_text(uploaded_file):
         st.error(f"Error extracting text from PDF: {str(e)}")
         return "Could not extract text from the PDF file."
 
-
-# Load embedding model once
 @st.cache_resource
 def load_model():
     return SentenceTransformer('sentence-transformers/all-mpnet-base-v2')
 
 ats_model = load_model()
 
-# Function to calculate similarity 
 def calculate_similarity_bert(text1, text2):
     embeddings1 = ats_model.encode([text1])
     embeddings2 = ats_model.encode([text2])
     similarity = cosine_similarity(embeddings1, embeddings2)[0][0]
     return similarity
 
-
-def get_report(resume,job_desc):
+def get_report(resume, job_desc):
     try:
         client = Groq(api_key=api_key)
-
-        # Change the prompt to get the results in your style
-        prompt=f"""
+        prompt = f"""
         # Context:
         - You are an AI Resume Analyzer, you will be given Candidate's resume and Job Description of the role he is applying for.
 
@@ -87,7 +69,7 @@ def get_report(resume,job_desc):
         - Each any every point should be given a score (example: 3/5 ). 
         - Mention the scores and  relevant emoji at the beginning of each point and then explain the reason.
         """
-
+        
         chat_completion = client.chat.completions.create(
             messages=[{"role": "user", "content": prompt}],
             model="llama-3.3-70b-versatile",
@@ -96,91 +78,67 @@ def get_report(resume,job_desc):
     except Exception as e:
         return f"❌ Error generating report: {str(e)}"
 
-
 def extract_scores(text):
-    # Regular expression pattern to find scores in the format x/5, where x can be an integer or a float
     pattern = r'(\d+(?:\.\d+)?)/5'
-    # Find all matches in the text
     matches = re.findall(pattern, text)
-    # Convert matches to floats
     scores = [float(match) for match in matches]
     return scores
 
-
-
-
-# <--------- Starting the Work Flow ---------> 
-
-# Displays Form only if the form is not submitted
+# Main app logic
 if not st.session_state.form_submitted:
     with st.form("my_form"):
-
-        # Taking input a Resume (PDF) file 
         resume_file = st.file_uploader(label="Upload your Resume/CV in PDF format", type="pdf")
-
-        # Taking input Job Description
-        st.session_state.job_desc = st.text_area("Enter the Job Description of the role you are applying for:",placeholder="Job Description...")
-
-        # Form Submission Button
+        st.session_state.job_desc = st.text_area("Enter the Job Description:", placeholder="Job Description...")
+        
         submitted = st.form_submit_button("Analyze")
         if submitted:
-
-            #  Allow only if Both Resume and Job Description are Submitted
             if st.session_state.job_desc and resume_file:
                 st.info("Extracting Information")
-
-                st.session_state.resume = extract_pdf_text(resume_file)      # Calling the function to extract text from Resume
-
+                st.session_state.resume = extract_pdf_text(resume_file)
                 st.session_state.form_submitted = True
-                st.rerun()                 # Refresh the page to close the form and give results
-
-            # Donot allow if not uploaded
+                st.rerun()
             else:
                 st.warning("Please Upload both Resume and Job Description to analyze")
 
-
 if st.session_state.form_submitted:
     score_place = st.info("Generating Scores...")
-
-    # Call the function to get ATS Score
-    ats_score = calculate_similarity_bert(st.session_state.resume,st.session_state.job_desc)
+    
+    # Calculate similarity score
+    ats_score = calculate_similarity_bert(st.session_state.resume, st.session_state.job_desc)
     ats_percentage = round(ats_score * 100, 2)
-
-    # FIXED: Removed border=True parameter
-    col1,col2 = st.columns(2)
+    
+    # Create columns WITHOUT border parameter
+    col1, col2 = st.columns(2)
+    
     with col1:
         st.write("Few ATS uses this score to shortlist candidates, Similarity Score:")
         st.subheader(f"{ats_percentage}% Match")
-
-    # Call the function to get the Analysis Report from LLM (Groq)
-    report = get_report(st.session_state.resume,st.session_state.job_desc)
-
-    # Calculate the Average Score from the LLM Report
+    
+    # Get AI report
+    report = get_report(st.session_state.resume, st.session_state.job_desc)
+    
+    # Calculate average score
     report_scores = extract_scores(report)
     avg_score = sum(report_scores) / len(report_scores) if report_scores else 0
-
-
+    
     with col2:
         st.write("Total Average score according to our AI report:")
         st.subheader(f"{round(avg_score, 2)} / 5")
-    score_place.success("Scores generated successfully!")
-
-
-    st.subheader("AI Generated Analysis Report:")
-
-    # Displaying Report 
-    st.markdown(f"""
-            <div style='text-align: left; background-color: #000000; padding: 10px; border-radius: 10px; margin: 5px 0;'>
-                {report}
-            </div>
-            """, unsafe_allow_html=True)
     
-    # Download Button - FIXED: Removed icon parameter
+    score_place.success("Scores generated successfully!")
+    
+    st.subheader("AI Generated Analysis Report:")
+    
+    # Display report
+    st.markdown(f"""
+    <div style='text-align: left; background-color: #000000; padding: 10px; border-radius: 10px; margin: 5px 0;'>
+        {report}
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # Download button WITHOUT icon parameter
     st.download_button(
         label="Download Report",
         data=report,
         file_name="report.txt"
-        )
-    
-
-# <-------------- End of the Work Flow --------------->
+    )
