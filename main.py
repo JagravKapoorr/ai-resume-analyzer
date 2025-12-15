@@ -146,6 +146,7 @@ if st.session_state.form_submitted:
     ats_score = calculate_similarity_bert(st.session_state.resume,st.session_state.job_desc)
     ats_percentage = round(ats_score * 100, 2)
 
+    # FIXED: Removed border=True parameter
     col1,col2 = st.columns(2)
     with col1:
         st.write("Few ATS uses this score to shortlist candidates, Similarity Score:")
@@ -174,12 +175,11 @@ if st.session_state.form_submitted:
             </div>
             """, unsafe_allow_html=True)
     
-    # Download Button
+    # Download Button - FIXED: Removed icon parameter
     st.download_button(
         label="Download Report",
         data=report,
-        file_name="report.txt",
-        icon=":material/download:",
+        file_name="report.txt"
         )
     
 
