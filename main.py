@@ -146,7 +146,7 @@ if st.session_state.form_submitted:
     ats_score = calculate_similarity_bert(st.session_state.resume,st.session_state.job_desc)
     ats_percentage = round(ats_score * 100, 2)
 
-    col1,col2 = st.columns(2,border=True)
+    col1,col2 = st.columns(2)
     with col1:
         st.write("Few ATS uses this score to shortlist candidates, Similarity Score:")
         st.subheader(f"{ats_percentage}% Match")
